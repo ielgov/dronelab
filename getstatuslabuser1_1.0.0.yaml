@@ -1,0 +1,55 @@
+---
+swagger: "2.0"
+info:
+  x-ibm-name: "getstatuslabuser1"
+  title: "getStatus"
+  version: "1.0.0"
+schemes:
+- "https"
+consumes:
+- "application/json"
+securityDefinitions: {}
+x-ibm-configuration:
+  testable: true
+  enforced: true
+  cors:
+    enabled: true
+  assembly:
+    execute:
+    - invoke:
+        target-url: "https://$(target_host)$(request.path)?drone_id=$(request.parameters.drone_id)&time_stamp=$(request.parameters.time_stamp)"
+        title: "user1"
+  phase: "realized"
+  properties:
+    target_host:
+      value: "cap-sg-prd-3.securegateway.appdomain.cloud:15481"
+      description: "Host for the target URL"
+      encoded: false
+  catalogs: {}
+paths:
+  /status:
+    get:
+      responses:
+        200:
+          description: "200 OK"
+    parameters:
+    - $ref: "#/parameters/drone_id"
+    - $ref: "#/parameters/time_stamp"
+tags: []
+parameters:
+  drone_id:
+    name: "drone_id"
+    type: "string"
+    required: true
+    in: "query"
+    description: "ID for the drone"
+  time_stamp:
+    name: "time_stamp"
+    type: "string"
+    required: true
+    in: "query"
+    description: "Time in milliseconds"
+produces:
+- "application/json"
+basePath: "/"
+host: "Host"
