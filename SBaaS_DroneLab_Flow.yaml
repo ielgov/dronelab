@@ -1,0 +1,726 @@
+$integration: 'http://ibm.com/appconnect/integration/v2/integrationFile'
+integration:
+  type: api
+  trigger-interfaces:
+    trigger-interface-1:
+      triggers:
+        retrieveallGetNearBySensors:
+          assembly:
+            $ref: '#/integration/assemblies/assembly-2'
+          input-context:
+            data: getNearBySensors
+          output-context:
+            data: getNearBySensors
+        retrieveRetrieveSensordata:
+          assembly:
+            $ref: '#/integration/assemblies/assembly-1'
+          input-context:
+            data: retrieveSensordata
+          output-context:
+            data: retrieveSensordata
+      options:
+        resources:
+          - business-object: getNearBySensors
+            model:
+              $ref: '#/models/getNearBySensors'
+            triggers:
+              retrieveall: retrieveallGetNearBySensors
+          - business-object: retrieveSensordata
+            model:
+              $ref: '#/models/retrieveSensordata'
+            triggers:
+              retrieve: retrieveRetrieveSensordata
+      type: api-trigger
+  action-interfaces:
+    action-interface-1:
+      type: api-action
+      business-object: request
+      connector-type: http
+      actions:
+        INVOKE: {}
+      account-name: Account 1
+    action-interface-2:
+      type: api-action
+      business-object: request
+      connector-type: http
+      account-name: Account 1
+      actions:
+        INVOKE: {}
+    action-interface-3:
+      type: api-action
+      business-object: request
+      connector-type: http
+      account-name: Account 1
+      actions:
+        INVOKE: {}
+  assemblies:
+    assembly-1:
+      assembly:
+        execute:
+          - custom-action:
+              name: HTTP Invoke method
+              target:
+                $ref: '#/integration/action-interfaces/action-interface-1'
+              action: INVOKE
+              map:
+                customSchemas: {}
+                mappings:
+                  - method:
+                      template: GET
+                  - url:
+                      template: >-
+                        https://cap-sg-prd-3.securegateway.appdomain.cloud:15481/status?drone_id={{$api.droneid}}&time_stamp=0
+                $map: 'http://ibm.com/appconnect/map/v1'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+          - parse:
+              name: JSON Parser Parse
+              parse-format: json
+              source:
+                template: '{{$HTTPInvokemethodMetadata}}'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+              sample-data: >-
+                {"payload":{"method":"GET","url":"https://cap-sg-prd-3.securegateway.appdomain.cloud:15481/status?drone_id=drone1","responseHeaders":{"x-powered-by":"Express","content-type":"application/json;
+                charset=utf-8","content-length":"360","etag":"W/\"168-9bVlIW4rr9t+7A+6OUFu5oSFPTQ\"","date":"Wed,
+                05 Aug 2020 05:10:49
+                GMT","connection":"close"},"responseBody":"{\"_id\":\"82cffc54e176e9a78d153394232be04a\",\"_rev\":\"2-b12bf0956ff4b23ecb841cb2c1adb09a\",\"date\":1596142696862,\"data\":{\"pitch\":\"0\",\"roll\":\"0\",\"yaw\":\"0\",\"vgx\":\"0\",\"vgy\":\"0\",\"vgz\":\"0\",\"templ\":\"80\",\"temph\":\"82\",\"tof\":\"10\",\"h\":\"0\",\"bat\":\"12\",\"baro\":\"146.71\",\"time\":\"0\",\"agx\":\"-1.00\",\"agy\":\"1.00\",\"agz\":\"-1001.00\"},\"type\":\"toy\",\"drone_id\":\"drone1\",\"data_version\":\"0.2\",
+                \"location\":\"32.9435,-96.9948\"}"},"status-code":200}
+              output-schema:
+                $schema: 'http://json-schema.org/draft-04/schema#'
+                type: object
+                properties:
+                  payload:
+                    type: object
+                    properties:
+                      method:
+                        type: string
+                      url:
+                        type: string
+                      responseHeaders:
+                        type: object
+                        properties:
+                          x-powered-by:
+                            type: string
+                          content-type:
+                            type: string
+                          content-length:
+                            type: string
+                          etag:
+                            type: string
+                          date:
+                            type: string
+                          connection:
+                            type: string
+                      responseBody:
+                        type: string
+                  status-code:
+                    type: number
+                title: Parsed JSON
+          - if:
+              name: If
+              input:
+                - variable: api
+                  $ref: '#/trigger/api/parameters'
+                - variable: HTTPInvokemethod
+                  $ref: '#/node-output/HTTP Invoke method/response/payload'
+                - variable: HTTPInvokemethodMetadata
+                  $ref: '#/node-output/HTTP Invoke method/response'
+                - variable: JSONParserParse
+                  $ref: '#/node-output/JSON Parser Parse/response/payload'
+              branch:
+                - condition:
+                    '{{$JSONParserParse."status-code"}}':
+                      gte: '200'
+                  execute: []
+                  map:
+                    $map: 'http://ibm.com/appconnect/map/v1'
+                    input:
+                      - variable: api
+                        $ref: '#/trigger/api/parameters'
+                      - variable: HTTPInvokemethod
+                        $ref: '#/node-output/HTTP Invoke method/response/payload'
+                      - variable: HTTPInvokemethodMetadata
+                        $ref: '#/node-output/HTTP Invoke method/response'
+                      - variable: JSONParserParse
+                        $ref: '#/node-output/JSON Parser Parse/response/payload'
+                    mappings:
+                      - info:
+                          template: >-
+                            {{$replace($JSONParserParse.payload.responseBody,
+                            "\"", "\"")}}
+              else:
+                execute: []
+                completion-action:
+                  terminate:
+                    error:
+                      input:
+                        - variable: api
+                          $ref: '#/trigger/api/parameters'
+                        - variable: HTTPInvokemethod
+                          $ref: '#/node-output/HTTP Invoke method/response/payload'
+                        - variable: HTTPInvokemethodMetadata
+                          $ref: '#/node-output/HTTP Invoke method/response'
+                        - variable: JSONParserParse
+                          $ref: '#/node-output/JSON Parser Parse/response/payload'
+                      message: Bad Request
+                      status-code: 400
+              output-schema:
+                required: []
+                properties:
+                  info:
+                    type: string
+                    title: info
+                title: Output Schema
+                type: object
+          - parse:
+              name: JSON Parser Parse 2
+              parse-format: json
+              source:
+                template: '{{$If.info}}'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+                  - variable: If
+                    $ref: '#/node-output/If/response/payload'
+              sample-data: "{\n\t\"_id\": \"82cffc54e176e9a78d153394232be04a\",\n\t\"_rev\": \"3-e23aef8e1290e66191154c7b461f160f\",\n\t\"date\": 1596142696862,\n\t\"data\": {\n\t\t\"pitch\": \"0\",\n\t\t\"roll\": \"0\",\n\t\t\"yaw\": \"0\",\n\t\t\"vgx\": \"0\",\n\t\t\"vgy\": \"0\",\n\t\t\"vgz\": \"0\",\n\t\t\"templ\": \"80\",\n\t\t\"temph\": \"82\",\n\t\t\"tof\": \"10\",\n\t\t\"h\": \"0\",\n\t\t\"bat\": \"12\",\n\t\t\"baro\": \"146.71\",\n\t\t\"time\": \"0\",\n\t\t\"agx\": \"-1.00\",\n\t\t\"agy\": \"1.00\",\n\t\t\"agz\": \"-1001.00\",\n\t\t\"location\": \"32.942690,-96.994845\"\n\t},\n\t\"type\": \"toy\",\n\t\"drone_id\": \"drone1\",\n\t\"data_version\": \"0.2\"\n}"
+              output-schema:
+                $schema: 'http://json-schema.org/draft-04/schema#'
+                type: object
+                properties:
+                  _id:
+                    type: string
+                  _rev:
+                    type: string
+                  date:
+                    type: number
+                  data:
+                    type: object
+                    properties:
+                      pitch:
+                        type: string
+                      roll:
+                        type: string
+                      yaw:
+                        type: string
+                      vgx:
+                        type: string
+                      vgy:
+                        type: string
+                      vgz:
+                        type: string
+                      templ:
+                        type: string
+                      temph:
+                        type: string
+                      tof:
+                        type: string
+                      h:
+                        type: string
+                      bat:
+                        type: string
+                      baro:
+                        type: string
+                      time:
+                        type: string
+                      agx:
+                        type: string
+                      agy:
+                        type: string
+                      agz:
+                        type: string
+                      location:
+                        type: string
+                  type:
+                    type: string
+                  drone_id:
+                    type: string
+                  data_version:
+                    type: string
+                title: Parsed JSON
+          - set-variable:
+              name: Set variable
+              map:
+                $map: 'http://ibm.com/appconnect/map/v1'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+                  - variable: If
+                    $ref: '#/node-output/If/response/payload'
+                  - variable: JSONParserParse2
+                    $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                customSchemas:
+                  properties.`variable`:
+                    type: object
+                    properties:
+                      lat:
+                        type: string
+                      long:
+                        type: string
+                mappings:
+                  - variable:
+                      mappings:
+                        - lat:
+                            template: >-
+                              {{$substringBefore($JSONParserParse2.data.location,
+                              ",")}}
+                        - long:
+                            template: >-
+                              {{$substringAfter($JSONParserParse2.data.location,
+                              ",")}}
+          - custom-action:
+              name: HTTP Invoke method 2
+              target:
+                $ref: '#/integration/action-interfaces/action-interface-2'
+              action: INVOKE
+              map:
+                customSchemas:
+                  properties.`requestHeaders`:
+                    type: object
+                    properties:
+                      Authorization:
+                        type: string
+                mappings:
+                  - method:
+                      template: GET
+                  - requestHeaders:
+                      mappings:
+                        - Authorization:
+                            template: >-
+                              Basic
+                              YjVhZTM0NmMtMjIwMC00OTlhLTlhOTUtYTgyMWRjZGUzYmJhLWJsdWVtaXg6MTY2OWE0Mzk4NTczMTU4MDMwYWU5NWI2ZTQ5NDljOTBmY2VjNjg4MDZmNzNhM2M1MGU1MmZjMmMxYmQwNzdmNQ==
+                  - url:
+                      template: >-
+                        https://b5ae346c-2200-499a-9a95-a821dcde3bba-bluemix.cloudantnosqldb.appdomain.cloud/sensordb/_design/sensorGeo/_geo/sensorGeoIndex?lat={{$Setvariable.variable.lat}}&lon={{$Setvariable.variable.long}}&radius=1000&limit=10&relation=contains&include_docs=true
+                $map: 'http://ibm.com/appconnect/map/v1'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+                  - variable: If
+                    $ref: '#/node-output/If/response/payload'
+                  - variable: JSONParserParse2
+                    $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                  - variable: Setvariable
+                    $ref: '#/node-output/Set variable/response/payload'
+          - logging:
+              name: Log
+              map:
+                $map: 'http://ibm.com/appconnect/map/v1'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+                  - variable: If
+                    $ref: '#/node-output/If/response/payload'
+                  - variable: JSONParserParse2
+                    $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                  - variable: Setvariable
+                    $ref: '#/node-output/Set variable/response/payload'
+                  - variable: HTTPInvokemethod2
+                    $ref: '#/node-output/HTTP Invoke method 2/response/payload'
+                  - variable: HTTPInvokemethod2Metadata
+                    $ref: '#/node-output/HTTP Invoke method 2/response'
+                mappings:
+                  - logLevel:
+                      template: Info
+                  - logMessage:
+                      template: '{{$HTTPInvokemethod2Metadata}}'
+          - parse:
+              name: JSON Parser Parse 3
+              parse-format: json
+              source:
+                template: '{{$HTTPInvokemethod2Metadata}}'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+                  - variable: If
+                    $ref: '#/node-output/If/response/payload'
+                  - variable: JSONParserParse2
+                    $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                  - variable: Setvariable
+                    $ref: '#/node-output/Set variable/response/payload'
+                  - variable: HTTPInvokemethod2
+                    $ref: '#/node-output/HTTP Invoke method 2/response/payload'
+                  - variable: HTTPInvokemethod2Metadata
+                    $ref: '#/node-output/HTTP Invoke method 2/response'
+              sample-data: >-
+                {"payload":{"method":"GET","requestHeaders":{"Authorization":"Basic
+                MTdjNThlYTItOWZkNC00MDEzLTlmMWItZDk0MDM5NGFkNmYwLWJsdWVtaXg6M2MyOTJiNGY5NmZkY2QyZGQ3OGI5MTA0NzVhODk3MDEyZWJhZTFiM2IzMTkyOTI2ZTE3YTlhMjc0Njk0YjI3Yg=="},"url":"https://17c58ea2-9fd4-4013-9f1b-d940394ad6f0-bluemix.cloudant.com/sensordb/_design/sensorGeo/_geo/sensorGeoIndex?lat=32.73299611609883&lon=-97.18093872070&radius=4200&limit=1&relation=contains&include_docs=true","responseHeaders":{"cache-control":"must-revalidate","content-length":"1961","content-type":"application/json","date":"Tue,
+                11 Aug 2020 04:55:16 GMT","server":"CouchDB/2.1.1 (Erlang
+                OTP/20)","x-cloudant-action":"cloudantnosqldb.any-document.read","x-couch-request-id":"006439ddc3","x-frame-options":"DENY","strict-transport-security":"max-age=31536000","x-content-type-options":"nosniff","x-cloudant-request-class":"query","x-cloudant-backend":"bm-cc-us-south-27","via":"1.1
+                lb2.bm-cc-us-south-27
+                (Glum/1.89.10)","connection":"close"},"responseBody":"{\"bookmark\":\"g2wAAAABaANkACpkYmNvcmVAZGIxMC5ibS1jYy11cy1zb3V0aC0yNy5jbG91ZGFudC5uZXRsAAAAAm4EAAAAAMBuBAD____PamgCbQAAACA3N2E0MDkyMWM5MzVhYTJjM2I4OWYwZjczMjY0NDQ0YkY_pbP3l_GfnGo\",\"rows\":[{\"id\":\"77a40921c935aa2c3b89f0f73264444b\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-97.219426,32.715233]},\"doc\":{\"_id\":\"77a40921c935aa2c3b89f0f73264444b\",\"_rev\":\"1-54cfcb0ad5121225fd27a36dbc7203b4\",\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-97.219426,32.715233]},\"properties\":{\"site\":\"e6493fbe-c8a1-4976-ac9a-1664c0ecfaf7\",\"device\":\"df4910c0-f096-4d06-9224-8f44f8f232b5\",\"site_id\":609,\"device_id\":2,\"site_alias\":43727,\"name\":\"Quail
+                and Elizabeth Rd\",\"device_alias\":3,\"sensor\":\"Barometric
+                Pressure\",\"type\":\"Barometric
+                Pressure\",\"color\":\"#006E2F\",\"icon\":\"icon-cloud\",\"last_value\":\"1,018.1\",\"precision\":1,\"rollup\":null,\"statistics\":null,\"translate\":null,\"last_time\":\"2020-08-10
+                09:00:38\",\"last_time_z\":\"2020-08-10T14:00:38+0000\",\"time\":1597068038,\"sensor_class\":53,\"unit\":\"mBar\",\"unix_timestamp\":1597068091,\"status\":1,\"highlight_color\":\"white\",\"text_color\":\"black\",\"site_list_html\":\"<h4
+                class=\\\"text-truncate\\\">Quail and Elizabeth Rd
+                <small>(609)</small>\",\"sensor_list_html\":\"<h6
+                class=\\\"text-truncate\\\"> <i class=\\\"icon-cloud\\\"></i>
+                Barometric Pressure
+                <small>(3)</small>\",\"site_hover_html\":\"<h5><i class=\\\"
+                icon-flagalt\\\" aria-hidden=\\\"true\\\"></i> Quail and
+                Elizabeth Rd
+                <small>(43727)</small></h6>\",\"sensor_hover_html\":\"<h6
+                class=\\\"list-group-item-heading\\\"><i
+                class=\\\"icon-cloud\\\"></i> Barometric Pressure
+                <small>(3)</small></h6>\",\"reading_html\":\"<h6>1,018.1mBar <i
+                class=\\\" icon-time\\\" data-toggle=\\\"tooltip\\\"
+                data-placement=\\\"top\\\" data-container=\\\"body\\\"
+                title=\\\"Time Ago\\\" aria-hidden=\\\"true\\\"></i> <span
+                class=\\\"sr-only\\\">Time Ago</span> <time class=\\\"timeago
+                badge-help\\\" data-toggle=\\\"tooltip\\\"
+                data-livestamp=\\\"2020-08-10T14:00:38Z\\\" title=\\\"2020-08-10
+                09:00:38\\\">2020-08-10
+                09:00:38</time>\",\"geolocation_enabled\":false,\"geolocation\":false}}}]}\n"},"status-code":200}
+              output-schema:
+                $schema: 'http://json-schema.org/draft-04/schema#'
+                type: object
+                properties:
+                  payload:
+                    type: object
+                    properties:
+                      method:
+                        type: string
+                      requestHeaders:
+                        type: object
+                        properties:
+                          Authorization:
+                            type: string
+                      url:
+                        type: string
+                      responseHeaders:
+                        type: object
+                        properties:
+                          cache-control:
+                            type: string
+                          content-length:
+                            type: string
+                          content-type:
+                            type: string
+                          date:
+                            type: string
+                          server:
+                            type: string
+                          x-cloudant-action:
+                            type: string
+                          x-couch-request-id:
+                            type: string
+                          x-frame-options:
+                            type: string
+                          strict-transport-security:
+                            type: string
+                          x-content-type-options:
+                            type: string
+                          x-cloudant-request-class:
+                            type: string
+                          x-cloudant-backend:
+                            type: string
+                          via:
+                            type: string
+                          connection:
+                            type: string
+                      responseBody:
+                        type: string
+                  status-code:
+                    type: number
+                title: Parsed JSON
+          - response:
+              name: response-1
+              reply-maps:
+                - title: dronedata successfully retrieved
+                  status-code: '$HTTPInvokemethodMetadata."status-code" '
+                  map:
+                    $map: 'http://ibm.com/appconnect/map/v1'
+                    input:
+                      - variable: api
+                        $ref: '#/trigger/api/parameters'
+                      - variable: HTTPInvokemethod
+                        $ref: '#/node-output/HTTP Invoke method/response/payload'
+                      - variable: HTTPInvokemethodMetadata
+                        $ref: '#/node-output/HTTP Invoke method/response'
+                      - variable: JSONParserParse
+                        $ref: '#/node-output/JSON Parser Parse/response/payload'
+                      - variable: If
+                        $ref: '#/node-output/If/response/payload'
+                      - variable: JSONParserParse2
+                        $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                      - variable: Setvariable
+                        $ref: '#/node-output/Set variable/response/payload'
+                      - variable: HTTPInvokemethod2
+                        $ref: '#/node-output/HTTP Invoke method 2/response/payload'
+                      - variable: HTTPInvokemethod2Metadata
+                        $ref: '#/node-output/HTTP Invoke method 2/response'
+                      - variable: JSONParserParse3
+                        $ref: '#/node-output/JSON Parser Parse 3/response/payload'
+                    mappings:
+                      - droneid:
+                          template: '{{$api.droneid}}'
+                      - response:
+                          expression: '$JSONParserParse3.payload.responseBody '
+                  input:
+                    - variable: api
+                      $ref: '#/trigger/api/parameters'
+                    - variable: HTTPInvokemethod
+                      $ref: '#/node-output/HTTP Invoke method/response/payload'
+                    - variable: HTTPInvokemethodMetadata
+                      $ref: '#/node-output/HTTP Invoke method/response'
+                    - variable: JSONParserParse
+                      $ref: '#/node-output/JSON Parser Parse/response/payload'
+                    - variable: If
+                      $ref: '#/node-output/If/response/payload'
+                    - variable: JSONParserParse2
+                      $ref: '#/node-output/JSON Parser Parse 2/response/payload'
+                    - variable: Setvariable
+                      $ref: '#/node-output/Set variable/response/payload'
+                    - variable: HTTPInvokemethod2
+                      $ref: '#/node-output/HTTP Invoke method 2/response/payload'
+                    - variable: HTTPInvokemethod2Metadata
+                      $ref: '#/node-output/HTTP Invoke method 2/response'
+                    - variable: JSONParserParse3
+                      $ref: '#/node-output/JSON Parser Parse 3/response/payload'
+    assembly-2:
+      assembly:
+        execute:
+          - custom-action:
+              name: HTTP Invoke method
+              target:
+                $ref: '#/integration/action-interfaces/action-interface-3'
+              action: INVOKE
+              map:
+                customSchemas:
+                  properties.`requestHeaders`:
+                    type: object
+                    properties:
+                      Authorization:
+                        type: string
+                mappings:
+                  - method:
+                      template: GET
+                  - requestHeaders:
+                      mappings:
+                        - Authorization:
+                            template: >-
+                              Basic
+                              YjVhZTM0NmMtMjIwMC00OTlhLTlhOTUtYTgyMWRjZGUzYmJhLWJsdWVtaXg6MTY2OWE0Mzk4NTczMTU4MDMwYWU5NWI2ZTQ5NDljOTBmY2VjNjg4MDZmNzNhM2M1MGU1MmZjMmMxYmQwNzdmNQ==
+                  - url:
+                      template: >-
+                        https://b5ae346c-2200-499a-9a95-a821dcde3bba-bluemix.cloudantnosqldb.appdomain.cloud/sensordb/_design/sensorGeo/_geo/sensorGeoIndex?lat={{$api.where.lat}}&lon={{$api.where.lon}}&radius={{$api.where.radius}}&limit=1&relation=contains&include_docs=true
+                $map: 'http://ibm.com/appconnect/map/v1'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+          - parse:
+              name: JSON Parser Parse
+              parse-format: json
+              source:
+                template: '{{$HTTPInvokemethodMetadata}}'
+                input:
+                  - variable: api
+                    $ref: '#/trigger/api/parameters'
+                  - variable: HTTPInvokemethod
+                    $ref: '#/node-output/HTTP Invoke method/response/payload'
+                  - variable: HTTPInvokemethodMetadata
+                    $ref: '#/node-output/HTTP Invoke method/response'
+              sample-data: >-
+                {"payload":{"method":"GET","requestHeaders":{"Authorization":"Basic
+                MTdjNThlYTItOWZkNC00MDEzLTlmMWItZDk0MDM5NGFkNmYwLWJsdWVtaXg6M2MyOTJiNGY5NmZkY2QyZGQ3OGI5MTA0NzVhODk3MDEyZWJhZTFiM2IzMTkyOTI2ZTE3YTlhMjc0Njk0YjI3Yg=="},"url":"https://17c58ea2-9fd4-4013-9f1b-d940394ad6f0-bluemix.cloudant.com/sensordb/_design/sensorGeo/_geo/sensorGeoIndex?lat=32.73299611609883&lon=-97.18093872070&radius=4200&limit=1&relation=contains&include_docs=true","responseHeaders":{"cache-control":"must-revalidate","content-length":"1961","content-type":"application/json","date":"Tue,
+                11 Aug 2020 04:55:16 GMT","server":"CouchDB/2.1.1 (Erlang
+                OTP/20)","x-cloudant-action":"cloudantnosqldb.any-document.read","x-couch-request-id":"006439ddc3","x-frame-options":"DENY","strict-transport-security":"max-age=31536000","x-content-type-options":"nosniff","x-cloudant-request-class":"query","x-cloudant-backend":"bm-cc-us-south-27","via":"1.1
+                lb2.bm-cc-us-south-27
+                (Glum/1.89.10)","connection":"close"},"responseBody":"{\"bookmark\":\"g2wAAAABaANkACpkYmNvcmVAZGIxMC5ibS1jYy11cy1zb3V0aC0yNy5jbG91ZGFudC5uZXRsAAAAAm4EAAAAAMBuBAD____PamgCbQAAACA3N2E0MDkyMWM5MzVhYTJjM2I4OWYwZjczMjY0NDQ0YkY_pbP3l_GfnGo\",\"rows\":[{\"id\":\"77a40921c935aa2c3b89f0f73264444b\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-97.219426,32.715233]},\"doc\":{\"_id\":\"77a40921c935aa2c3b89f0f73264444b\",\"_rev\":\"1-54cfcb0ad5121225fd27a36dbc7203b4\",\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-97.219426,32.715233]},\"properties\":{\"site\":\"e6493fbe-c8a1-4976-ac9a-1664c0ecfaf7\",\"device\":\"df4910c0-f096-4d06-9224-8f44f8f232b5\",\"site_id\":609,\"device_id\":2,\"site_alias\":43727,\"name\":\"Quail
+                and Elizabeth Rd\",\"device_alias\":3,\"sensor\":\"Barometric
+                Pressure\",\"type\":\"Barometric
+                Pressure\",\"color\":\"#006E2F\",\"icon\":\"icon-cloud\",\"last_value\":\"1,018.1\",\"precision\":1,\"rollup\":null,\"statistics\":null,\"translate\":null,\"last_time\":\"2020-08-10
+                09:00:38\",\"last_time_z\":\"2020-08-10T14:00:38+0000\",\"time\":1597068038,\"sensor_class\":53,\"unit\":\"mBar\",\"unix_timestamp\":1597068091,\"status\":1,\"highlight_color\":\"white\",\"text_color\":\"black\",\"site_list_html\":\"<h4
+                class=\\\"text-truncate\\\">Quail and Elizabeth Rd
+                <small>(609)</small>\",\"sensor_list_html\":\"<h6
+                class=\\\"text-truncate\\\"> <i class=\\\"icon-cloud\\\"></i>
+                Barometric Pressure
+                <small>(3)</small>\",\"site_hover_html\":\"<h5><i class=\\\"
+                icon-flagalt\\\" aria-hidden=\\\"true\\\"></i> Quail and
+                Elizabeth Rd
+                <small>(43727)</small></h6>\",\"sensor_hover_html\":\"<h6
+                class=\\\"list-group-item-heading\\\"><i
+                class=\\\"icon-cloud\\\"></i> Barometric Pressure
+                <small>(3)</small></h6>\",\"reading_html\":\"<h6>1,018.1mBar <i
+                class=\\\" icon-time\\\" data-toggle=\\\"tooltip\\\"
+                data-placement=\\\"top\\\" data-container=\\\"body\\\"
+                title=\\\"Time Ago\\\" aria-hidden=\\\"true\\\"></i> <span
+                class=\\\"sr-only\\\">Time Ago</span> <time class=\\\"timeago
+                badge-help\\\" data-toggle=\\\"tooltip\\\"
+                data-livestamp=\\\"2020-08-10T14:00:38Z\\\" title=\\\"2020-08-10
+                09:00:38\\\">2020-08-10
+                09:00:38</time>\",\"geolocation_enabled\":false,\"geolocation\":false}}}]}\n"},"status-code":200}
+              output-schema:
+                $schema: 'http://json-schema.org/draft-04/schema#'
+                type: object
+                properties:
+                  payload:
+                    type: object
+                    properties:
+                      method:
+                        type: string
+                      requestHeaders:
+                        type: object
+                        properties:
+                          Authorization:
+                            type: string
+                      url:
+                        type: string
+                      responseHeaders:
+                        type: object
+                        properties:
+                          cache-control:
+                            type: string
+                          content-length:
+                            type: string
+                          content-type:
+                            type: string
+                          date:
+                            type: string
+                          server:
+                            type: string
+                          x-cloudant-action:
+                            type: string
+                          x-couch-request-id:
+                            type: string
+                          x-frame-options:
+                            type: string
+                          strict-transport-security:
+                            type: string
+                          x-content-type-options:
+                            type: string
+                          x-cloudant-request-class:
+                            type: string
+                          x-cloudant-backend:
+                            type: string
+                          via:
+                            type: string
+                          connection:
+                            type: string
+                      responseBody:
+                        type: string
+                  status-code:
+                    type: number
+                title: Parsed JSON
+          - response:
+              name: response-1
+              reply-maps:
+                - title: locdata successfully retrieved
+                  status-code: '200'
+                  map:
+                    $map: 'http://ibm.com/appconnect/map/v1'
+                    input:
+                      - variable: api
+                        $ref: '#/trigger/api/parameters'
+                      - variable: HTTPInvokemethod
+                        $ref: '#/node-output/HTTP Invoke method/response/payload'
+                      - variable: HTTPInvokemethodMetadata
+                        $ref: '#/node-output/HTTP Invoke method/response'
+                      - variable: JSONParserParse
+                        $ref: '#/node-output/JSON Parser Parse/response/payload'
+                    mappings:
+                      - getNearBySensors:
+                          foreach:
+                            input: '$JSONParserParse.payload '
+                            iterator: getNearBySensorsItem
+                            mappings:
+                              - response:
+                                  template: '{{$getNearBySensorsItem.responseBody}}'
+                  input:
+                    - variable: api
+                      $ref: '#/trigger/api/parameters'
+                    - variable: HTTPInvokemethod
+                      $ref: '#/node-output/HTTP Invoke method/response/payload'
+                    - variable: HTTPInvokemethodMetadata
+                      $ref: '#/node-output/HTTP Invoke method/response'
+                    - variable: JSONParserParse
+                      $ref: '#/node-output/JSON Parser Parse/response/payload'
+  name: DroneLab_user2
+models:
+  getNearBySensors:
+    name: getNearBySensors
+    properties:
+      droneid:
+        required: false
+        id: true
+        type: string
+      lat:
+        required: false
+        id: false
+        type: string
+      lon:
+        required: false
+        id: false
+        type: string
+      radius:
+        required: false
+        id: false
+        type: string
+      response:
+        required: false
+        id: false
+        type: string
+    plural: getNearBySensors
+    description: ' '
+    operations:
+      retrieveall: '#/integration/assemblies/assembly-2'
+    interactions:
+      retrieveall:
+        pagination-type: none
+        filterSupport:
+          queryablefields:
+            - lat
+            - lon
+            - radius
+  retrieveSensordata:
+    name: retrieveSensordata
+    properties:
+      droneid:
+        required: false
+        id: true
+        type: string
+      response:
+        required: false
+        id: false
+        type: {}
+    plural: retrieveSensordata
+    description: ' '
+    operations:
+      retrieve: '#/integration/assemblies/assembly-1'
