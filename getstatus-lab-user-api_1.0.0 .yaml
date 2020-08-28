@@ -1,6 +1,7 @@
 ---
 swagger: "2.0"
 info:
+  title: "getStatus-lab-user-api"
   version: "1.0.0"
 schemes:
 - "https"
