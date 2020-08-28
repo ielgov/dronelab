@@ -1,8 +1,6 @@
 ---
 swagger: "2.0"
 info:
-  x-ibm-name: "getstatus-lab-user4-api"
-  title: "getStatus-lab-user4-api"
   version: "1.0.0"
 schemes:
 - "https"
